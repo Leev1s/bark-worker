@@ -36,7 +36,7 @@ Then Click `Edit Code`
     <img src="images/setup/Screenshot from 2024-02-19 08-29-29.png">
 </p>
 
-Copy Code From [main.js](../main.js) or [main_kv.js](../main_kv.js) and Paste It
+Copy Code From [main.js](../main.js) and Paste It
 
 <p align="center">
     <img src="images/setup/Screenshot from 2024-02-19 08-30-20.png">
@@ -56,7 +56,7 @@ Then Click `Save`
 
 ## Create Database
 
-Click `Workers & Pages` &rarr; `D1` or `KV` &rarr; `Create`
+Click `Workers & Pages` &rarr; `KV` &rarr; `Create`
 
 <p align="center">
     <img src="images/setup/Screenshot from 2024-02-19 08-31-34.png">
@@ -78,7 +78,7 @@ Click `Workers & Pages` &rarr; `OverView` &rarr; `The Worker You Just Created`
 
 Then Click `Settings` &rarr; `Variables` 
 
-Click `D1 Database Bindings` or `KV Namesapce Bindings` Base on D1 or KV Version
+Click `KV Namespace Bindings`
 
 Then Click `Edit Variables` &rarr; `Add Binding`
 
@@ -100,18 +100,6 @@ Then Click `Save`
 
 > [!CAUTION]
 > The name MUST be `database`, Otherwise, Worker will throw exception
-
-## Database Initialize
-
-If you are using KV Version, goto [Register](#register)
-
-After Modify `isAllowQueryNums` to `ture`, Send Request on path `/info`
-
-<p align="center">
-    <img src="images/setup/Screenshot from 2024-02-19 08-34-28.png">
-</p>
-
-If you see Response includes `devices: 0`, the Deploy is Succeed
 
 ## Register
 

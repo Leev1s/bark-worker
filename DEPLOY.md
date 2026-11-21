@@ -3,16 +3,15 @@
 这是 Leev1s 的个人 fork，上游为 cwxiaos/bark-worker（remote 名 `upstream`）。
 用途：自建 Bark 推送服务端，替代公共实例 api.day.app。
 
-## 选型
+## 存储
 
-- 采用 **KV 变体**：入口 `main_kv.js`，存储绑定名 `database`。
-- 单设备轻量使用，KV 免费额度（读 10 万次/天、写 1 千次/天）远超需求；
-  D1 相关文件保留在仓库中但不参与部署。
+- 项目采用 **Workers KV**，入口 `main.js`，存储绑定名 `database`。
+- 单设备轻量使用，KV 免费额度（读 10 万次/天、写 1 千次/天）远超需求。
 
 ## 部署流程
 
 - 推送到 `master` 或手动触发 workflow，即由 GitHub Actions
-  （`.github/workflows/deploy.yml`）先做 `node --check main_kv.js`
+  （`.github/workflows/deploy.yml`）先做 `node --check main.js`
   语法检查，再用 wrangler-action 部署。
 - Actions 需要两个仓库 secret（只存名字，值不进仓库）：
   - `CLOUDFLARE_API_TOKEN`
@@ -28,5 +27,4 @@ git fetch upstream
 git merge upstream/master
 ```
 
-本 fork 只改部署配置、CI 与文档，不改上游源码文件
-（`main.js`、`main_kv.js` 等），保证合并上游更新时冲突最小。
+本 fork 以 `main.js` 作为 Workers KV 入口，同步上游时请核对入口与部署配置。

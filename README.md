@@ -13,13 +13,9 @@ English | **[中文文档](README.zh.md)**
 > Device token may change, the previous way to use multi-key or key alias may be unavailable, refer to [Tips](doc/tips.md) for more details. -->
 
 > [!NOTE]
-> KV Version will probably not support MCP due to limited quota, but if the MCP route can be optimized to some extent, there may have MCP support in KV version.
-
-> [!NOTE]
 > Batch Push has the highest priority, if `device_keys` is specified and not empty, `device_key` will be ignored, in both V1 and V2 APIs.
 
-<!-- > [!CAUTION]
-> For D1 Alpha Users: On August 1, 2024, D1 alpha databases will stop accepting live SQL queries. See [Migration Guide](https://developers.cloudflare.com/d1/platform/alpha-migration/) -->
+
 
 Bark-Worker is a [Bark-Server](https://github.com/Finb/bark-server) implenmention on Cloudflare Worker. It provides privacy-aware users with a cheap and private bark backend. 
 
@@ -41,36 +37,14 @@ Bark-Worker is a [Bark-Server](https://github.com/Finb/bark-server) implenmentio
 
 ## Setup
 
-> [!NOTE]
-> Select one, D1 or KV Version are both available. D1 Version is recommended for its higher usage than KV Version
+Create a Worker and a KV namespace, and bind the namespace to the Worker as `database`.
 
-<!-- > [!CAUTION]
-> After Cloudflare D1 is not in Beta, KV Version maybe deprecated. -->
-
-### Follow the instructions for D1 Version
-
-> [!NOTE]
-> The Cloudflare API Token must have D1 permission.
-
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cwxiaos/bark-worker)
-
-### Or manually deploy
-
-Refer to [Setup Guide](doc/setup_guide.md)
-
-#### Cloudflare D1 Version
-
-Create a Worker and a D1 Database, bind D1 database to Worker with name `database`
-
-#### Cloudflare KV Version
-
-Create a Worker and a KV Storage, bind KV Storage to Worker with name `database`
+Refer to the [Setup Guide](doc/setup_guide.md).
 
 ## Tips
 
 - Multi Device Key to one Device
 - Device Key Alias
-- D1 Database Manage in Console
 - etc.
 
 Refer to [Tips](doc/tips.md)

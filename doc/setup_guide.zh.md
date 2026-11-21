@@ -36,7 +36,7 @@
     <img src="images/setup/Screenshot from 2024-02-19 08-29-29.png">
 </p>
 
-从 [main.js](../main.js) 或 [main_kv.js](../main_kv.js) 复制代码并粘贴
+从 [main.js](../main.js) 复制代码并粘贴
 
 <p align="center">
     <img src="images/setup/Screenshot from 2024-02-19 08-30-20.png">
@@ -56,7 +56,7 @@
 
 ## 创建数据库
 
-点击 `Workers & Pages` &rarr; `D1` 或 `KV` &rarr; `Create`
+点击 `Workers & Pages` &rarr; `KV` &rarr; `Create`
 
 <p align="center">
     <img src="images/setup/Screenshot from 2024-02-19 08-31-34.png">
@@ -78,7 +78,7 @@
 
 点击 `Settings` &rarr; `Variables` 
 
-根据代码版本点击 `D1 Database Bindings` 或 `KV Namesapce Bindings`
+点击 `KV Namespace Bindings`
 
 点击 `Edit Variables` &rarr; `Add Binding`
 
@@ -100,18 +100,6 @@
 
 > [!CAUTION]
 > 名称必须为 `database`, 否则Worker会报错
-
-## 初始化数据库
-
-如果使用KV版本, 跳转至 [注册](#注册)
-
-把 `isAllowQueryNums` 修改为 `ture`, 使用 `/info` 发送请求
-
-<p align="center">
-    <img src="images/setup/Screenshot from 2024-02-19 08-34-28.png">
-</p>
-
-当返回中包含 `devices: 0`, 说明部署成功
 
 ## 注册
 
