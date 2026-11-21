@@ -37,6 +37,9 @@ async function handleRequest(request, env, ctx) {
             }
             return handler.info(searchParams)
         }
+        case '/ui': {
+            if (request.method === 'GET') return webui()
+        }
         default: {
             const pathParts = realPathname.split('/')
 
@@ -244,6 +247,84 @@ async function handleRequest(request, env, ctx) {
             })
         }
     }
+}
+
+
+function webui() {
+    return new Response(`<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bark 自建服务</title>
+<style>
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; background: #f4f6fa; color: #172033; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px 16px 48px; }
+main { max-width: 580px; margin: auto; }
+h1 { font-size: 1.8rem; margin-bottom: 8px; }
+h2 { font-size: 1.15rem; margin-top: 0; }
+p { line-height: 1.6; }
+section { background: #fff; border-radius: 16px; padding: 22px; margin-top: 18px; box-shadow: 0 4px 24px #1720330d; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; margin-bottom: 0; }
+dt { color: #667085; } dd { margin: 0; overflow-wrap: anywhere; }
+label { display: block; margin: 14px 0 6px; }
+input, textarea, button { font: inherit; width: 100%; border-radius: 9px; padding: 10px 12px; }
+input, textarea { border: 1px solid #cbd2df; background: transparent; color: inherit; }
+textarea { min-height: 100px; resize: vertical; }
+button { margin-top: 16px; border: 0; background: #3569df; color: white; cursor: pointer; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; }
+@media (prefers-color-scheme: dark) {
+  :root { background: #111827; color: #edf2fa; }
+  section { background: #1e293b; } dt { color: #aab7ca; }
+  input, textarea { border-color: #526077; }
+}
+</style>
+</head>
+<body><main>
+<h1>Bark 自建服务</h1>
+<p>这是自建的 Bark 推送服务。在 Bark App 中添加本服务器地址即可注册设备。</p>
+<section><h2>服务状态</h2><dl>
+<dt>服务</dt><dd>Bark Server</dd>
+<dt>状态</dt><dd id="status">检查中</dd>
+</dl><dl id="info"></dl></section>
+<section><h2>测试推送</h2>
+<form id="push-form">
+<label for="key">Device key</label><input id="key" required autocomplete="off">
+<label for="title">标题</label><input id="title" required>
+<label for="body">正文</label><textarea id="body" required></textarea>
+<button type="submit">发送测试推送</button>
+</form><pre id="result" aria-live="polite"></pre></section>
+</main><script>
+const base = new URL('.', location.href);
+const status = document.getElementById('status');
+fetch(new URL('ping', base)).then(r => r.json()).then(data => {
+  status.textContent = data.message === 'pong' ? '在线' : '状态未知';
+}).catch(() => { status.textContent = '无法连接'; });
+fetch(new URL('info', base)).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(data => {
+  const info = document.getElementById('info');
+  for (const [key, label] of [['version', '版本'], ['build', '构建时间'], ['arch', '架构'], ['commit', '提交'], ['devices', '设备数']]) {
+    if (data[key] === undefined || data[key] === null) continue;
+    const dt = document.createElement('dt'), dd = document.createElement('dd');
+    dt.textContent = label; dd.textContent = String(data[key]); info.append(dt, dd);
+  }
+}).catch(() => {});
+document.getElementById('push-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const result = document.getElementById('result');
+  result.textContent = '发送中…';
+  try {
+    const response = await fetch(new URL('push', base), {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ device_key: document.getElementById('key').value, title: document.getElementById('title').value, body: document.getElementById('body').value })
+    });
+    result.textContent = JSON.stringify(await response.json(), null, 2);
+  } catch (error) { result.textContent = '请求失败：' + error.message; }
+});
+</script></body></html>`, {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+    })
 }
 
 class Handler {
