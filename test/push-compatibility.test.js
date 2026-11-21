@@ -3,34 +3,25 @@ import test from 'node:test'
 
 import worker from '../main.js'
 
-class FakeD1Database {
-    exec() {}
-
-    prepare(query) {
-        return {
-            bind: (...bindings) => ({
-                run: async () => this.run(query, bindings),
-            }),
-            run: async () => this.run(query, []),
-        }
+class FakeKVNamespace {
+    constructor() {
+        this.values = new Map([
+            ['testdevicekey', 'test-device-token'],
+            ['_authToken_', JSON.stringify({
+                token: 'test-authorization-token',
+                time: Math.floor(Date.now() / 1000),
+            })],
+        ])
     }
 
-    async run(query) {
-        if (query.includes('SELECT `token` FROM `devices`')) {
-            return { results: [{ token: 'test-device-token' }] }
-        }
-
-        if (query.includes('SELECT `token`, `time` FROM `authorization`')) {
-            return {
-                results: [{
-                    token: 'test-authorization-token',
-                    time: String(Math.floor(Date.now() / 1000)),
-                }],
-            }
-        }
-
-        return { results: [] }
+    async get(key, type) {
+        const value = this.values.get(key) ?? null
+        return value !== null && type === 'json' ? JSON.parse(value) : value
     }
+
+    async put(key, value) { this.values.set(key, value) }
+    async delete(key) { this.values.delete(key) }
+    async list() { return { keys: [...this.values.keys()].map(name => ({ name })), list_complete: true } }
 }
 
 function createWorkerContext() {
@@ -64,7 +55,7 @@ async function push(payload) {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify(payload),
         }), {
-            database: new FakeD1Database(),
+            database: new FakeKVNamespace(),
             ALLOW_NEW_DEVICE: 'false',
             ALLOW_QUERY_NUMS: 'false',
             ROOT_PATH: '/',
@@ -84,7 +75,7 @@ async function push(payload) {
 test('GET /ping remains compatible with the client health check', async () => {
     const { context, settle } = createWorkerContext()
     const response = await worker.fetch(new Request('https://worker.example/ping'), {
-        database: new FakeD1Database(),
+        database: new FakeKVNamespace(),
         ALLOW_NEW_DEVICE: 'false',
         ALLOW_QUERY_NUMS: 'false',
         ROOT_PATH: '/',
