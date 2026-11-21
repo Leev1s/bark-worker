@@ -18,7 +18,9 @@
   - `CLOUDFLARE_ACCOUNT_ID`
 - `wrangler.jsonc` 里的 KV namespace ID 在 Cloudflare 阶段创建后回填，
   占位符为 `REPLACE_WITH_KV_NAMESPACE_ID`。
-- 对外域名：`bark.r3.net.eu.org`（Cloudflare 侧绑定）。
+- 对外地址：`https://bark.lev1s.workers.dev`（workers.dev，Worker 名 `bark`）。
+  自定义域名下推送命中上游已知问题（经域名调用的 Worker 连接 APNs 返回 520，
+  见上游 issue #19），故不绑定自定义域名。
 
 ## 同步上游
 
