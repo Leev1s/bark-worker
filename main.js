@@ -854,7 +854,7 @@ class Database {
         }
 
         this.countAll = async () => {
-            const count = (await kvStorage.list()).keys.length
+            const count = (await this.listDeviceKeys()).length
             return count
         }
 
