@@ -258,48 +258,99 @@ function webui() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bark 自建服务</title>
 <style>
-:root { color-scheme: light dark; font-family: system-ui, sans-serif; background: #f4f6fa; color: #172033; }
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  background: #f5f5f7;
+  color: #1d1d1f;
+  --card: #fff;
+  --field: #f5f5f7;
+  --secondary: #6e6e73;
+  --muted: #86868b;
+  --line: #d2d2d7;
+  --divider: #e8e8ed;
+  --accent: #0071e3;
+  --button: #0071e3;
+  --button-hover: #0066cc;
+  --online: #248a3d;
+}
 * { box-sizing: border-box; }
-body { margin: 0; padding: 24px 16px 48px; }
-main { max-width: 580px; margin: auto; }
-h1 { font-size: 1.8rem; margin-bottom: 8px; }
-h2 { font-size: 1.15rem; margin-top: 0; }
-p { line-height: 1.6; }
-section { background: #fff; border-radius: 16px; padding: 22px; margin-top: 18px; box-shadow: 0 4px 24px #1720330d; }
-dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 18px; margin-bottom: 0; }
-dt { color: #667085; } dd { margin: 0; overflow-wrap: anywhere; }
-label { display: block; margin: 14px 0 6px; }
-input, textarea, button { font: inherit; width: 100%; border-radius: 9px; padding: 10px 12px; }
-input, textarea { border: 1px solid #cbd2df; background: transparent; color: inherit; }
-textarea { min-height: 100px; resize: vertical; }
-button { margin-top: 16px; border: 0; background: #3569df; color: white; cursor: pointer; }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; }
+body { margin: 0; padding: 72px 24px 48px; }
+main { max-width: 760px; margin: 0 auto; }
+header { margin-bottom: 40px; }
+h1 { margin: 0; font-size: clamp(32px, 6vw, 48px); font-weight: 700; line-height: 1.15; letter-spacing: -.035em; }
+header p { margin: 16px 0 0; color: var(--secondary); }
+h2 { margin: 0 0 20px; font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -.02em; }
+section { margin-top: 24px; padding: 32px; background: var(--card); border-radius: 26px; box-shadow: 0 2px 12px #00000004; }
+dl { display: grid; grid-template-columns: minmax(5rem, auto) minmax(0, 1fr); margin: 0; font-size: 15px; }
+dt, dd { padding: 15px 0; border-top: 1px solid var(--divider); }
+dt { color: var(--secondary); padding-right: 24px; }
+dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+dl:first-of-type dt:first-child, dl:first-of-type dd:nth-child(2) { border-top: 0; }
+dl:last-of-type dt:nth-last-child(2), dl:last-of-type dd:last-child { padding-bottom: 0; }
+#status { font-weight: 500; }
+#status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--muted); vertical-align: middle; }
+#status[data-state="online"]::before { background: var(--online); }
+label { display: block; margin: 20px 0 8px; font-size: 15px; font-weight: 500; }
+label:first-child { margin-top: 0; }
+input, textarea, button { font: inherit; }
+input, textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--field); color: inherit; }
+input:focus, textarea:focus { border-color: var(--accent); outline: 3px solid var(--accent); outline-offset: 2px; }
+textarea { display: block; min-height: 128px; resize: vertical; }
+button { min-height: 46px; margin-top: 28px; padding: 11px 26px; border: 0; border-radius: 999px; background: var(--button); color: #fff; font-weight: 500; cursor: pointer; }
+button:hover { background: var(--button-hover); }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+pre { margin: 24px 0 0; padding: 16px; border: 1px solid var(--divider); border-radius: 12px; background: var(--field); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.6; }
+pre:empty { display: none; }
+footer { margin-top: 24px; padding: 0 8px; color: var(--secondary); font-size: 14px; }
+footer p { margin: 0; }
+@media (max-width: 480px) {
+  body { padding: 40px 16px 32px; }
+  header { margin-bottom: 28px; }
+  section { padding: 24px 20px; border-radius: 22px; }
+  dt { padding-right: 16px; }
+  button { width: 100%; }
+}
 @media (prefers-color-scheme: dark) {
-  :root { background: #111827; color: #edf2fa; }
-  section { background: #1e293b; } dt { color: #aab7ca; }
-  input, textarea { border-color: #526077; }
+  :root {
+    background: #000000;
+    color: #f5f5f7;
+    --card: #1c1c1e;
+    --field: #2c2c2e;
+    --secondary: #a1a1a6;
+    --line: #48484a;
+    --divider: #38383a;
+    --accent: #2997ff;
+    --online: #30d158;
+  }
 }
 </style>
 </head>
 <body><main>
+<header>
 <h1>Bark 自建服务</h1>
-<p>这是自建的 Bark 推送服务。在 Bark App 中添加本服务器地址即可注册设备。</p>
-<section><h2>服务状态</h2><dl>
+<p>这是自建的 Bark 推送服务。</p>
+</header>
+<section aria-labelledby="service-heading"><h2 id="service-heading">服务状态</h2><dl>
 <dt>服务</dt><dd>Bark Server</dd>
-<dt>状态</dt><dd id="status">检查中</dd>
+<dt>状态</dt><dd id="status" role="status">检查中</dd>
 </dl><dl id="info"></dl></section>
-<section><h2>测试推送</h2>
+<section aria-labelledby="push-heading"><h2 id="push-heading">测试推送</h2>
 <form id="push-form">
 <label for="key">Device key</label><input id="key" required autocomplete="off">
 <label for="title">标题</label><input id="title" required>
 <label for="body">正文</label><textarea id="body" required></textarea>
 <button type="submit">发送测试推送</button>
 </form><pre id="result" aria-live="polite"></pre></section>
+<footer><p>在 Bark App 中添加本服务器地址即可注册设备。</p></footer>
 </main><script>
 const base = new URL('.', location.href);
 const status = document.getElementById('status');
 fetch(new URL('ping', base)).then(r => r.json()).then(data => {
   status.textContent = data.message === 'pong' ? '在线' : '状态未知';
+  status.dataset.state = data.message === 'pong' ? 'online' : 'unknown';
 }).catch(() => { status.textContent = '无法连接'; });
 fetch(new URL('info', base)).then(r => { if (!r.ok) throw new Error(); return r.json(); }).then(data => {
   const info = document.getElementById('info');
