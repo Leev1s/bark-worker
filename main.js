@@ -333,70 +333,72 @@ function webui() {
 <style>
 :root {
   color-scheme: light dark;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 17px;
+  line-height: 1.47;
+  letter-spacing: -0.022em;
   background: #f5f5f7;
   color: #1d1d1f;
-  --card: #fff;
+  --card: #ffffff;
   --secondary: #6e6e73;
   --muted: #86868b;
-  --divider: #e8e8ed;
+  --divider: #d2d2d7;
   --accent: #0071e3;
   --button: #0071e3;
-  --button-hover: #0066cc;
-  --online: #248a3d;
-  --error: #b42318;
+  --button-hover: #0077ed;
+  --button-active: #006edb;
+  --online: #34c759;
+  --error: #ff3b30;
 }
 * { box-sizing: border-box; }
-body { margin: 0; padding: 72px 24px 48px; }
-main { max-width: 760px; margin: 0 auto; }
-header { margin-bottom: 40px; }
-h1 { margin: 0; font-size: clamp(32px, 6vw, 48px); font-weight: 700; line-height: 1.15; letter-spacing: -.035em; }
-header p { margin: 16px 0 0; color: var(--secondary); }
-h2 { margin: 0 0 20px; font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -.02em; }
-section { margin-top: 24px; padding: 32px; background: var(--card); border-radius: 26px; box-shadow: 0 2px 12px #00000004; }
-dl { display: grid; grid-template-columns: minmax(5rem, auto) minmax(0, 1fr); margin: 0; font-size: 15px; }
-dt, dd { padding: 15px 0; border-top: 1px solid var(--divider); }
-dt { color: var(--secondary); padding-right: 24px; }
-dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
-dl:first-of-type dt:first-child, dl:first-of-type dd:nth-child(2) { border-top: 0; }
-dl:last-of-type dt:nth-last-child(2), dl:last-of-type dd:last-child { padding-bottom: 0; }
-#status { font-weight: 500; }
-#status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--muted); vertical-align: middle; }
+body { margin: 0; padding: 48px 20px; }
+main { max-width: 680px; margin: 0 auto; }
+h1, h2 { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+h1 { margin: 0; font-size: 32px; font-weight: 700; line-height: 1.125; letter-spacing: -0.02em; }
+header p { margin: 6px 0 0; font-size: 17px; color: var(--secondary); }
+section { margin-top: 28px; }
+h2 { margin: 0 16px 7px; font-size: 13px; font-weight: 400; color: var(--muted); letter-spacing: -0.01em; }
+.group { padding: 0; background: var(--card); border-radius: 10px; overflow: hidden; }
+dl { position: relative; display: grid; grid-template-columns: minmax(5rem, auto) minmax(0, 1fr); margin: 0; }
+dt, dd { position: relative; min-height: 44px; padding: 11px 16px; }
+dt { color: inherit; padding-right: 8px; }
+dd { margin: 0; padding-left: 8px; color: var(--secondary); text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+dt:not(:first-child)::after, dd:not(:nth-child(2))::after, dl + dl:not(:empty)::after, .device + .device::after {
+  content: ''; position: absolute; top: 0; right: 0; left: 16px; height: 1px; background: var(--divider);
+}
+dd:not(:nth-child(2))::after { left: 0; }
+#status { color: inherit; }
+#status::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--muted); vertical-align: middle; }
 #status[data-state="online"]::before { background: var(--online); }
-.device { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 20px; padding: 18px 0; border-top: 1px solid var(--divider); align-items: center; }
-.device:first-child { border-top: 0; padding-top: 0; }
-.device:last-child { padding-bottom: 0; }
-.device-key { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
-.device-token, .device-result, .device-placeholder { color: var(--secondary); font-size: 14px; overflow-wrap: anywhere; }
+.device { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; min-height: 44px; padding: 11px 16px; align-items: center; }
+.device-key { font-size: 17px; overflow-wrap: anywhere; }
+.device-token, .device-result, .device-placeholder { color: var(--muted); font-size: 13px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.device-token { margin-top: 2px; }
 .device-result { grid-column: 1 / -1; }
 .device-result:empty { display: none; }
 .device-result[data-state="success"] { color: var(--online); }
 .device-result[data-state="error"] { color: var(--error); }
-.device-placeholder { margin: 0; }
-button { font: inherit; min-height: 36px; padding: 6px 18px; border: 0; border-radius: 999px; background: var(--button); color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; }
+.device-placeholder { margin: 0; min-height: 44px; padding: 11px 16px; }
+button { font: inherit; padding: 7px 16px; border: 0; border-radius: 980px; background: var(--button); color: #ffffff; font-size: 14px; cursor: pointer; transition: background-color 0.2s; }
 button:hover { background: var(--button-hover); }
-button:disabled { opacity: .55; cursor: wait; }
-button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-footer { margin-top: 24px; padding: 0 8px; color: var(--secondary); font-size: 14px; }
+button:active { background: var(--button-active); }
+button:disabled { opacity: 0.5; cursor: wait; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+footer { margin-top: 7px; padding: 0 16px; color: var(--muted); font-size: 13px; letter-spacing: -0.01em; }
 footer p { margin: 0; }
 @media (max-width: 480px) {
-  body { padding: 40px 16px 32px; }
-  header { margin-bottom: 28px; }
-  section { padding: 24px 20px; border-radius: 22px; }
-  dt { padding-right: 16px; }
+  body { padding-right: 16px; padding-left: 16px; }
 }
 @media (prefers-color-scheme: dark) {
   :root {
     background: #000000;
     color: #f5f5f7;
     --card: #1c1c1e;
-    --secondary: #a1a1a6;
+    --secondary: #98989f;
+    --muted: #98989f;
     --divider: #38383a;
-    --accent: #2997ff;
     --online: #30d158;
-    --error: #ff6961;
+    --error: #ff453a;
   }
 }
 </style>
@@ -406,12 +408,12 @@ footer p { margin: 0; }
 <h1>Bark 自建服务</h1>
 <p>本站长的个人推送服务控制台。</p>
 </header>
-<section aria-labelledby="service-heading"><h2 id="service-heading">服务状态</h2><dl>
+<section aria-labelledby="service-heading"><h2 id="service-heading">服务状态</h2><div class="group"><dl>
 <dt>服务</dt><dd>Bark Server</dd>
 <dt>状态</dt><dd id="status" role="status">检查中</dd>
-</dl><dl id="info"></dl></section>
+</dl><dl id="info"></dl></div></section>
 <section aria-labelledby="devices-heading"><h2 id="devices-heading">设备</h2>
-<div id="devices" aria-busy="true"><p class="device-placeholder" role="status">正在加载设备…</p></div></section>
+<div id="devices" class="group" aria-busy="true"><p class="device-placeholder" role="status">正在加载设备…</p></div></section>
 <footer><p>用于查看已注册设备并发送测试通知。Ping 将发送标题为 Bark、正文为 ping 的通知。</p></footer>
 </main><script>
 const base = new URL('.', location.href);
