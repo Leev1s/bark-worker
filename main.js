@@ -15,6 +15,16 @@ async function handleRequest(request, env, ctx) {
     const handler = new Handler(db, { allowNewDevice, allowQueryNums })
     const realPathname = pathname.replace((new RegExp('^' + rootPath.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'))), '/')
 
+    if ((realPathname === '/ui/devices' && request.method === 'GET') ||
+        (realPathname === '/ui/ping' && request.method === 'POST')) {
+        if (!util.validateBasicAuth(request, basicAuth)) {
+            const response = webuiJson({ code: 401, success: false, message: 'Unauthorized' }, 401)
+            response.headers.set('WWW-Authenticate', 'Basic realm="Bark"')
+            return response
+        }
+        return webuiApi(request, db, handler)
+    }
+
     switch (realPathname) {
         case '/register': {
             return handler.register(searchParams)
@@ -250,6 +260,69 @@ async function handleRequest(request, env, ctx) {
 }
 
 
+function webuiJson(data, status = 200) {
+    return new Response(JSON.stringify(data), {
+        status,
+        headers: {
+            'content-type': 'application/json; charset=utf-8',
+            'cache-control': 'no-store',
+        },
+    })
+}
+
+function webuiMask(value, head, tail = 0) {
+    if (!value) return '…'
+    // Always hide at least one character, including for unusually short values.
+    if (value.length <= head + tail) return value.slice(0, Math.floor(value.length / 2)) + '…'
+    return value.slice(0, head) + '…' + (tail ? value.slice(-tail) : '')
+}
+
+async function webuiApi(request, db, handler) {
+    try {
+        if (request.method === 'GET') {
+            const keys = await db.listDeviceKeys()
+            return webuiJson(await Promise.all(keys.map(async (key, index) => ({
+                index,
+                keyMasked: webuiMask(key, 6, 2),
+                tokenHint: webuiMask(await db.deviceTokenByKey(key), 8),
+            }))))
+        }
+
+        let body
+        try {
+            body = await request.json()
+        } catch {
+            return webuiJson({ code: 400, success: false, message: '请求体必须是 JSON' }, 400)
+        }
+        if (!Number.isSafeInteger(body?.index) || body.index < 0) {
+            return webuiJson({ code: 400, success: false, message: '设备序号必须是非负整数' }, 400)
+        }
+
+        // Resolve the index afresh; raw identifiers never come from the browser.
+        const keys = await db.listDeviceKeys()
+        const key = keys[body.index]
+        if (key === undefined) {
+            return webuiJson({ code: 404, success: false, message: '设备不存在，请刷新设备列表' }, 404)
+        }
+        const token = await db.deviceTokenByKey(key)
+        if (!token) {
+            return webuiJson({ code: 400, success: false, message: '设备 token 不可用，请重新注册设备' }, 400)
+        }
+
+        const response = await handler.push({ device_key: key, title: 'Bark', body: 'ping' })
+        const result = await response.json()
+        let message = String(result.message || (response.ok ? 'success' : '推送失败'))
+        // Upstream errors may echo identifiers; only a redacted message is public.
+        for (const secret of [key, token].sort((a, b) => b.length - a.length)) {
+            message = message.split(secret).join('[已隐藏]')
+        }
+        return webuiJson({ code: response.status, success: response.ok, message }, response.status)
+    } catch {
+        // Exceptions may contain APNs URLs/tokens; keep their details server-side.
+        return webuiJson({ code: 503, success: false, message: '控制台请求失败，请稍后重试' }, 503)
+    }
+}
+
 function webui() {
     return new Response(`<!doctype html>
 <html lang="zh-CN">
@@ -266,15 +339,14 @@ function webui() {
   background: #f5f5f7;
   color: #1d1d1f;
   --card: #fff;
-  --field: #f5f5f7;
   --secondary: #6e6e73;
   --muted: #86868b;
-  --line: #d2d2d7;
   --divider: #e8e8ed;
   --accent: #0071e3;
   --button: #0071e3;
   --button-hover: #0066cc;
   --online: #248a3d;
+  --error: #b42318;
 }
 * { box-sizing: border-box; }
 body { margin: 0; padding: 72px 24px 48px; }
@@ -293,17 +365,20 @@ dl:last-of-type dt:nth-last-child(2), dl:last-of-type dd:last-child { padding-bo
 #status { font-weight: 500; }
 #status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--muted); vertical-align: middle; }
 #status[data-state="online"]::before { background: var(--online); }
-label { display: block; margin: 20px 0 8px; font-size: 15px; font-weight: 500; }
-label:first-child { margin-top: 0; }
-input, textarea, button { font: inherit; }
-input, textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--field); color: inherit; }
-input:focus, textarea:focus { border-color: var(--accent); outline: 3px solid var(--accent); outline-offset: 2px; }
-textarea { display: block; min-height: 128px; resize: vertical; }
-button { min-height: 46px; margin-top: 28px; padding: 11px 26px; border: 0; border-radius: 999px; background: var(--button); color: #fff; font-weight: 500; cursor: pointer; }
+.device { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 20px; padding: 18px 0; border-top: 1px solid var(--divider); align-items: center; }
+.device:first-child { border-top: 0; padding-top: 0; }
+.device:last-child { padding-bottom: 0; }
+.device-key { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.device-token, .device-result, .device-placeholder { color: var(--secondary); font-size: 14px; overflow-wrap: anywhere; }
+.device-result { grid-column: 1 / -1; }
+.device-result:empty { display: none; }
+.device-result[data-state="success"] { color: var(--online); }
+.device-result[data-state="error"] { color: var(--error); }
+.device-placeholder { margin: 0; }
+button { font: inherit; min-height: 36px; padding: 6px 18px; border: 0; border-radius: 999px; background: var(--button); color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; }
 button:hover { background: var(--button-hover); }
+button:disabled { opacity: .55; cursor: wait; }
 button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-pre { margin: 24px 0 0; padding: 16px; border: 1px solid var(--divider); border-radius: 12px; background: var(--field); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.6; }
-pre:empty { display: none; }
 footer { margin-top: 24px; padding: 0 8px; color: var(--secondary); font-size: 14px; }
 footer p { margin: 0; }
 @media (max-width: 480px) {
@@ -311,19 +386,17 @@ footer p { margin: 0; }
   header { margin-bottom: 28px; }
   section { padding: 24px 20px; border-radius: 22px; }
   dt { padding-right: 16px; }
-  button { width: 100%; }
 }
 @media (prefers-color-scheme: dark) {
   :root {
     background: #000000;
     color: #f5f5f7;
     --card: #1c1c1e;
-    --field: #2c2c2e;
     --secondary: #a1a1a6;
-    --line: #48484a;
     --divider: #38383a;
     --accent: #2997ff;
     --online: #30d158;
+    --error: #ff6961;
   }
 }
 </style>
@@ -331,20 +404,15 @@ footer p { margin: 0; }
 <body><main>
 <header>
 <h1>Bark 自建服务</h1>
-<p>这是自建的 Bark 推送服务。</p>
+<p>本站长的个人推送服务控制台。</p>
 </header>
 <section aria-labelledby="service-heading"><h2 id="service-heading">服务状态</h2><dl>
 <dt>服务</dt><dd>Bark Server</dd>
 <dt>状态</dt><dd id="status" role="status">检查中</dd>
 </dl><dl id="info"></dl></section>
-<section aria-labelledby="push-heading"><h2 id="push-heading">测试推送</h2>
-<form id="push-form">
-<label for="key">Device key</label><input id="key" required autocomplete="off">
-<label for="title">标题</label><input id="title" required>
-<label for="body">正文</label><textarea id="body" required></textarea>
-<button type="submit">发送测试推送</button>
-</form><pre id="result" aria-live="polite"></pre></section>
-<footer><p>在 Bark App 中添加本服务器地址即可注册设备。</p></footer>
+<section aria-labelledby="devices-heading"><h2 id="devices-heading">设备</h2>
+<div id="devices" aria-busy="true"><p class="device-placeholder" role="status">正在加载设备…</p></div></section>
+<footer><p>用于查看已注册设备并发送测试通知。Ping 将发送标题为 Bark、正文为 ping 的通知。</p></footer>
 </main><script>
 const base = new URL('.', location.href);
 const status = document.getElementById('status');
@@ -360,18 +428,51 @@ fetch(new URL('info', base)).then(r => { if (!r.ok) throw new Error(); return r.
     dt.textContent = label; dd.textContent = String(data[key]); info.append(dt, dd);
   }
 }).catch(() => {});
-document.getElementById('push-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  const result = document.getElementById('result');
-  result.textContent = '发送中…';
-  try {
-    const response = await fetch(new URL('push', base), {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ device_key: document.getElementById('key').value, title: document.getElementById('title').value, body: document.getElementById('body').value })
+const devices = document.getElementById('devices');
+fetch(new URL('ui/devices', base)).then(async response => {
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || '设备列表加载失败');
+  return data;
+}).then(data => {
+  devices.replaceChildren();
+  if (data.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'device-placeholder';
+    empty.textContent = '暂无已注册设备';
+    devices.append(empty);
+  }
+  for (const device of data) {
+    const row = document.createElement('div'), identity = document.createElement('div');
+    const key = document.createElement('div'), token = document.createElement('div');
+    const button = document.createElement('button'), result = document.createElement('div');
+    row.className = 'device'; key.className = 'device-key'; token.className = 'device-token';
+    key.textContent = device.keyMasked; token.textContent = 'Token · ' + device.tokenHint;
+    button.type = 'button'; button.textContent = 'Ping';
+    button.setAttribute('aria-label', 'Ping 设备 ' + device.keyMasked);
+    result.className = 'device-result'; result.setAttribute('role', 'status');
+    result.setAttribute('aria-live', 'polite');
+    button.addEventListener('click', async () => {
+      button.disabled = true; button.textContent = '发送中…';
+      result.textContent = ''; result.removeAttribute('data-state');
+      try {
+        const response = await fetch(new URL('ui/ping', base), {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ index: device.index })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || '推送失败');
+        result.dataset.state = 'success'; result.textContent = '✓ ' + data.message;
+      } catch (error) {
+        result.dataset.state = 'error'; result.textContent = '发送失败：' + error.message;
+      } finally { button.disabled = false; button.textContent = 'Ping'; }
     });
-    result.textContent = JSON.stringify(await response.json(), null, 2);
-  } catch (error) { result.textContent = '请求失败：' + error.message; }
-});
+    identity.append(key, token); row.append(identity, button, result); devices.append(row);
+  }
+}).catch(error => {
+  const message = document.createElement('p'); message.className = 'device-placeholder';
+  message.setAttribute('role', 'status'); message.textContent = '设备加载失败：' + error.message;
+  devices.replaceChildren(message);
+}).finally(() => devices.setAttribute('aria-busy', 'false'));
 </script></body></html>`, {
         status: 200,
         headers: { 'content-type': 'text/html; charset=utf-8' },
@@ -740,6 +841,17 @@ class Database {
     constructor(env) {
         // Make database private
         const kvStorage = env.database
+
+        this.listDeviceKeys = async () => {
+            const keys = []
+            let cursor
+            do {
+                const page = await kvStorage.list(cursor ? { cursor } : {})
+                keys.push(...page.keys.map(item => item.name).filter(key => !key.startsWith('_')))
+                cursor = page.list_complete ? undefined : page.cursor
+            } while (cursor)
+            return keys.sort()
+        }
 
         this.countAll = async () => {
             const count = (await kvStorage.list()).keys.length
