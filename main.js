@@ -4,6 +4,19 @@ export default {
     }
 }
 
+// formData()/searchParams()/JSON bodies already arrive decoded, so a literal
+// '%' in the text (e.g. "涨 31%") is not percent-encoding and makes
+// decodeURIComponent throw URIError, which used to turn the whole push into
+// HTTP 500 ("url path parse failed"). Decode when possible, keep the raw
+// value when not — a push must never fail on ordinary text.
+function safeDecodeURIComponent(value) {
+    try {
+        return decodeURIComponent(value)
+    } catch {
+        return value
+    }
+}
+
 async function handleRequest(request, env, ctx) {
     const allowNewDevice = env.ALLOW_NEW_DEVICE !== undefined ? (env.ALLOW_NEW_DEVICE === 'false' ? false : Boolean(env.ALLOW_NEW_DEVICE)) : true
     const allowQueryNums = env.ALLOW_QUERY_NUMS !== undefined ? (env.ALLOW_QUERY_NUMS === 'false' ? false : Boolean(env.ALLOW_QUERY_NUMS)) : true
@@ -68,19 +81,19 @@ async function handleRequest(request, env, ctx) {
 
                         try {
                             if (requestBody.title) {
-                                requestBody.title = decodeURIComponent(requestBody.title.replaceAll('\\+', '%20'))
+                                requestBody.title = safeDecodeURIComponent(requestBody.title.replaceAll('\\+', '%20'))
                             }
                             
                             if (requestBody.subtitle) {
-                                requestBody.subtitle = decodeURIComponent(requestBody.subtitle.replaceAll('\\+', '%20'))
+                                requestBody.subtitle = safeDecodeURIComponent(requestBody.subtitle.replaceAll('\\+', '%20'))
                             }
                             
                             if (requestBody.body) {
-                                requestBody.body = decodeURIComponent(requestBody.body.replaceAll('\\+', '%20'))
+                                requestBody.body = safeDecodeURIComponent(requestBody.body.replaceAll('\\+', '%20'))
                             }
 
                             if (requestBody.markdown) {
-                                requestBody.markdown = decodeURIComponent(requestBody.markdown.replaceAll('\\+', '%20'))
+                                requestBody.markdown = safeDecodeURIComponent(requestBody.markdown.replaceAll('\\+', '%20'))
                             }
                         } catch (error) {
                             return new Response(JSON.stringify({
@@ -121,19 +134,19 @@ async function handleRequest(request, env, ctx) {
 
                         try {
                             if (requestBody.title) {
-                                requestBody.title = decodeURIComponent(requestBody.title.replaceAll('\\+','%20'))
+                                requestBody.title = safeDecodeURIComponent(requestBody.title.replaceAll('\\+','%20'))
                             }
                             
                             if (requestBody.subtitle) {
-                                requestBody.subtitle = decodeURIComponent(requestBody.subtitle.replaceAll('\\+','%20'))
+                                requestBody.subtitle = safeDecodeURIComponent(requestBody.subtitle.replaceAll('\\+','%20'))
                             }
                             
                             if (requestBody.body) {
-                                requestBody.body = decodeURIComponent(requestBody.body.replaceAll('\\+','%20'))
+                                requestBody.body = safeDecodeURIComponent(requestBody.body.replaceAll('\\+','%20'))
                             }
 
                             if (requestBody.markdown) {
-                                requestBody.markdown = decodeURIComponent(requestBody.markdown.replaceAll('\\+','%20'))
+                                requestBody.markdown = safeDecodeURIComponent(requestBody.markdown.replaceAll('\\+','%20'))
                             }
                         } catch (error) {
                             return new Response(JSON.stringify({
@@ -153,7 +166,7 @@ async function handleRequest(request, env, ctx) {
                         if (requestBody.device_keys.startsWith('[') || requestBody.device_keys.endsWith(']')) {
                             requestBody.device_keys = JSON.parse(requestBody.device_keys)
                         } else {
-                            requestBody.device_keys = (decodeURIComponent(requestBody.device_keys).trim()).split(',').map(item => item.replace(/['"]/g, '').trim())
+                            requestBody.device_keys = (safeDecodeURIComponent(requestBody.device_keys).trim()).split(',').map(item => item.replace(/['"]/g, '').trim())
                         }
 
                         if (typeof requestBody.device_keys === 'string') {
