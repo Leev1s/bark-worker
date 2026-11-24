@@ -4,18 +4,13 @@ export default {
     }
 }
 
-// formData()/searchParams()/JSON bodies already arrive decoded, so a literal
-// '%' in the text (e.g. "涨 31%") is not percent-encoding and makes
-// decodeURIComponent throw URIError, which used to turn the whole push into
-// HTTP 500 ("url path parse failed"). Decode when possible, keep the raw
-// value when not — a push must never fail on ordinary text.
-function safeDecodeURIComponent(value) {
-    try {
-        return decodeURIComponent(value)
-    } catch {
-        return value
-    }
-}
+// Decoding rule, same principle as upstream dc2a328 ("JSON body should
+// not be unescaped"): decode a value exactly once, and only where the
+// transport leaves it encoded. request.formData(), URLSearchParams and
+// request.json() already return decoded values, so decoding them again
+// corrupts ordinary text: a literal "%" throws URIError (HTTP 500), a
+// literal "%20" silently turns into a space. Only URL path segments
+// arrive percent-encoded, and only those are decoded below.
 
 async function handleRequest(request, env, ctx) {
     const allowNewDevice = env.ALLOW_NEW_DEVICE !== undefined ? (env.ALLOW_NEW_DEVICE === 'false' ? false : Boolean(env.ALLOW_NEW_DEVICE)) : true
@@ -91,75 +86,31 @@ async function handleRequest(request, env, ctx) {
                     }else if (contentType && contentType.includes('application/x-www-form-urlencoded')){
                         const formData = await request.formData()
                         formData.forEach((value, key) => {requestBody[key.toLowerCase()] = value})
-
-                        try {
-                            if (requestBody.title) {
-                                requestBody.title = safeDecodeURIComponent(requestBody.title.replaceAll('\\+', '%20'))
-                            }
-                            
-                            if (requestBody.subtitle) {
-                                requestBody.subtitle = safeDecodeURIComponent(requestBody.subtitle.replaceAll('\\+', '%20'))
-                            }
-                            
-                            if (requestBody.body) {
-                                requestBody.body = safeDecodeURIComponent(requestBody.body.replaceAll('\\+', '%20'))
-                            }
-
-                            if (requestBody.markdown) {
-                                requestBody.markdown = safeDecodeURIComponent(requestBody.markdown.replaceAll('\\+', '%20'))
-                            }
-                        } catch (error) {
-                            return new Response(JSON.stringify({
-                                'code': 500,
-                                'message': `url path parse failed: ${error}`,
-                                'timestamp': util.getTimestamp(),
-                            }), {
-                                status: 500,
-                                headers: {
-                                    'content-type': 'application/json',
-                                }
-                            })
-                        }
+                        // formData() already decodes: nothing further to decode here.
                     }else{
                         searchParams.forEach((value, key) => {requestBody[key.toLowerCase()] = value})
 
-                        if (pathParts.length === 3) {
-                            requestBody.body = pathParts[2]
-                        } else if (pathParts.length === 4) {
-                            requestBody.title = pathParts[2]
-                            requestBody.body = pathParts[3]
-                        } else if (pathParts.length === 5) {
-                            requestBody.title = pathParts[2]
-                            requestBody.subtitle = pathParts[3]
-                            requestBody.body = pathParts[4]
-                        } else if (pathParts.length > 5) {
-                            return new Response(JSON.stringify({
-                                'code': 404,
-                                'message': `Cannot ${request.method} ${realPathname}`,
-                                'timestamp': util.getTimestamp(),
-                            }), {
-                                status: 404,
-                                headers: {
-                                    'content-type': 'application/json',
-                                }
-                            })
-                        }
-
                         try {
-                            if (requestBody.title) {
-                                requestBody.title = safeDecodeURIComponent(requestBody.title.replaceAll('\\+','%20'))
-                            }
-                            
-                            if (requestBody.subtitle) {
-                                requestBody.subtitle = safeDecodeURIComponent(requestBody.subtitle.replaceAll('\\+','%20'))
-                            }
-                            
-                            if (requestBody.body) {
-                                requestBody.body = safeDecodeURIComponent(requestBody.body.replaceAll('\\+','%20'))
-                            }
-
-                            if (requestBody.markdown) {
-                                requestBody.markdown = safeDecodeURIComponent(requestBody.markdown.replaceAll('\\+','%20'))
+                            if (pathParts.length === 3) {
+                                requestBody.body = decodeURIComponent(pathParts[2])
+                            } else if (pathParts.length === 4) {
+                                requestBody.title = decodeURIComponent(pathParts[2])
+                                requestBody.body = decodeURIComponent(pathParts[3])
+                            } else if (pathParts.length === 5) {
+                                requestBody.title = decodeURIComponent(pathParts[2])
+                                requestBody.subtitle = decodeURIComponent(pathParts[3])
+                                requestBody.body = decodeURIComponent(pathParts[4])
+                            } else if (pathParts.length > 5) {
+                                return new Response(JSON.stringify({
+                                    'code': 404,
+                                    'message': `Cannot ${request.method} ${realPathname}`,
+                                    'timestamp': util.getTimestamp(),
+                                }), {
+                                    status: 404,
+                                    headers: {
+                                        'content-type': 'application/json',
+                                    }
+                                })
                             }
                         } catch (error) {
                             return new Response(JSON.stringify({
@@ -179,7 +130,7 @@ async function handleRequest(request, env, ctx) {
                         if (requestBody.device_keys.startsWith('[') || requestBody.device_keys.endsWith(']')) {
                             requestBody.device_keys = JSON.parse(requestBody.device_keys)
                         } else {
-                            requestBody.device_keys = (safeDecodeURIComponent(requestBody.device_keys).trim()).split(',').map(item => item.replace(/['"]/g, '').trim())
+                            requestBody.device_keys = (requestBody.device_keys.trim()).split(',').map(item => item.replace(/['"]/g, '').trim())
                         }
 
                         if (typeof requestBody.device_keys === 'string') {
