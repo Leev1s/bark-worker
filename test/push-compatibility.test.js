@@ -243,3 +243,94 @@ test('GET path form still decodes percent-encoded segments once', async () => {
         globalThis.fetch = originalFetch
     }
 })
+
+// More special percent sequences through the form branch: every one of
+// these must arrive verbatim. The old double-decode 500'd on the bare /
+// truncated / invalid ones and silently corrupted the literal "%25" into
+// "%" (and a try/catch fallback would still corrupt that one).
+test('form POST passes special percent sequences through verbatim', async (t) => {
+    const cases = [
+        ['bare % at end', '涨 31%'],
+        ['lone %', '%'],
+        ['multiple %', '涨 31%，跌 28%'],
+        ['truncated escape %2', '进度 50%2'],
+        ['invalid hex %zz', '折扣 %zz'],
+        ['invalid hex %G1', '错误码 %G1'],
+        ['literal %25', '100%25'],
+        ['plus sign', 'a+b'],
+        ['spaces and emoji', '涨 31% 🚀'],
+    ]
+
+    for (const [name, body] of cases) {
+        await t.test(name, async () => {
+            const { status, apnsPayload } = await pushForm({
+                title: 'X 代刷精选',
+                body,
+                group: 'X代刷',
+            })
+
+            assert.equal(status, 200)
+            assert.equal(apnsPayload.aps.alert.body, body)
+        })
+    }
+})
+
+test('form POST keeps % in title and markdown verbatim', async () => {
+    const { status, apnsPayload } = await pushForm({
+        title: '涨 31%',
+        body: '正文',
+        markdown: '**加粗** 100% 完成',
+        group: 'X代刷',
+    })
+
+    assert.equal(status, 200)
+    assert.equal(apnsPayload.aps.alert.title, '涨 31%')
+    assert.equal(apnsPayload.markdown, '**加粗** 100% 完成')
+})
+
+// JSON bodies were never supposed to be unescaped (upstream dc2a328):
+// a literal % in a JSON push must reach APNs untouched.
+test('JSON POST with % in the body is not unescaped', async () => {
+    const payload = await push({
+        device_key: 'test-device-key',
+        title: '标题',
+        body: '涨 31%（JSON）',
+        group: 'Codex',
+    })
+
+    assert.equal(payload.aps.alert.body, '涨 31%（JSON）')
+})
+
+// Query-string values arrive decoded via URLSearchParams, same as form:
+// a literal % there must pass through verbatim, not 500.
+test('GET query form passes % through verbatim', async () => {
+    const apnsRequests = []
+    const originalFetch = globalThis.fetch
+
+    globalThis.fetch = async (url, init) => {
+        apnsRequests.push({ url, init })
+        return new Response(null, { status: 200 })
+    }
+
+    try {
+        const { context, settle } = createWorkerContext()
+        const response = await worker.fetch(new Request(
+            'https://worker.example/testdevicekey?title='
+            + encodeURIComponent('标题%') + '&body=' + encodeURIComponent('涨 31%'),
+        ), {
+            database: new FakeKVNamespace(),
+            ALLOW_NEW_DEVICE: 'false',
+            ALLOW_QUERY_NUMS: 'false',
+            ROOT_PATH: '/',
+        }, context)
+
+        await settle()
+
+        assert.equal(response.status, 200)
+        const payload = JSON.parse(apnsRequests[0].init.body)
+        assert.equal(payload.aps.alert.title, '标题%')
+        assert.equal(payload.aps.alert.body, '涨 31%')
+    } finally {
+        globalThis.fetch = originalFetch
+    }
+})
