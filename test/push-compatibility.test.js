@@ -145,3 +145,101 @@ test('POST /push forwards every supported interruption level', async (t) => {
         })
     }
 })
+
+async function pushForm(params) {
+    const apnsRequests = []
+    const originalFetch = globalThis.fetch
+
+    globalThis.fetch = async (url, init) => {
+        apnsRequests.push({ url, init })
+        return new Response(null, { status: 200 })
+    }
+
+    try {
+        const { context, settle } = createWorkerContext()
+        const response = await worker.fetch(new Request('https://worker.example/testdevicekey', {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(params).toString(),
+        }), {
+            database: new FakeKVNamespace(),
+            ALLOW_NEW_DEVICE: 'false',
+            ALLOW_QUERY_NUMS: 'false',
+            ROOT_PATH: '/',
+        }, context)
+
+        await settle()
+
+        return {
+            status: response.status,
+            body: await response.json(),
+            apnsPayload: apnsRequests.length ? JSON.parse(apnsRequests[0].init.body) : null,
+        }
+    } finally {
+        globalThis.fetch = originalFetch
+    }
+}
+
+// Regression: form bodies arrive already decoded, so a literal "%" must
+// not be decoded a second time (upstream issue #31 family). The old code
+// answered HTTP 500 "url path parse failed" for every push whose text
+// contained a bare "%" (e.g. the X rounds with 60% / 50% / 28% / 31%).
+test('form POST with a literal % in the body delivers it verbatim', async () => {
+    const { status, body, apnsPayload } = await pushForm({
+        title: 'X 代刷精选',
+        body: '涨 31%',
+        group: 'X代刷',
+    })
+
+    assert.equal(status, 200)
+    assert.equal(body.code, 200)
+    assert.equal(apnsPayload.aps.alert.body, '涨 31%')
+})
+
+// A literal "%20" in the text is not an encoded space: it must survive
+// untouched. A try/catch fallback around the second decode would have
+// silently turned it into a space.
+test('form POST keeps a literal %20 in the text intact', async () => {
+    const { status, apnsPayload } = await pushForm({
+        title: 'X 代刷精选',
+        body: '100%20 折扣',
+        group: 'X代刷',
+    })
+
+    assert.equal(status, 200)
+    assert.equal(apnsPayload.aps.alert.body, '100%20 折扣')
+})
+
+// Only URL path segments arrive percent-encoded, so only those are
+// decoded: GET /<key>/<title>/<body> still decodes %XX once.
+test('GET path form still decodes percent-encoded segments once', async () => {
+    const apnsRequests = []
+    const originalFetch = globalThis.fetch
+
+    globalThis.fetch = async (url, init) => {
+        apnsRequests.push({ url, init })
+        return new Response(null, { status: 200 })
+    }
+
+    try {
+        const { context, settle } = createWorkerContext()
+        const response = await worker.fetch(new Request(
+            'https://worker.example/testdevicekey/'
+            + encodeURIComponent('标题') + '/' + encodeURIComponent('涨 31%'),
+        ), {
+            database: new FakeKVNamespace(),
+            ALLOW_NEW_DEVICE: 'false',
+            ALLOW_QUERY_NUMS: 'false',
+            ROOT_PATH: '/',
+        }, context)
+
+        await settle()
+
+        assert.equal(response.status, 200)
+        const payload = JSON.parse(apnsRequests[0].init.body)
+        assert.equal(payload.aps.alert.title, '标题')
+        assert.equal(payload.aps.alert.body, '涨 31%')
+    } finally {
+        globalThis.fetch = originalFetch
+    }
+})
